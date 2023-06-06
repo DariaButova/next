@@ -1,95 +1,125 @@
-import Image from 'next/image'
+"use client";
+import Head from 'next/head'
+import "../flow/config";
+import { useState, useEffect } from "react";
+import * as fcl from "@onflow/fcl";
 import styles from './page.module.css'
 
 export default function Home() {
-  return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
+
+  const [user, setUser] = useState({loggedIn: null})
+  const [name, setName] = useState('')
+  const [transactionStatus, setTransactionStatus] = useState(null)
+
+  useEffect(() => fcl.currentUser.subscribe(setUser), [])
+
+  const sendQuery = async () => {
+    const profile = await fcl.query({
+      cadence: `
+        import Profile from 0xProfile
+
+        pub fun main(address: Address): Profile.ReadOnly? {
+          return Profile.read(address)
+        }
+      `,
+      args: (arg, t) => [arg(user.addr, t.Address)]
+    })
+
+    setName(profile?.name ?? 'No Profile')
+  }
+
+  const initAccount = async () => {
+    const transactionId = await fcl.mutate({
+      cadence: `
+        import Profile from 0xProfile
+
+        transaction {
+          prepare(account: AuthAccount) {
+            // Only initialize the account if it hasn't already been initialized
+            if (!Profile.check(account.address)) {
+              // This creates and stores the profile in the user's account
+              account.save(<- Profile.new(), to: Profile.privatePath)
+
+              // This creates the public capability that lets applications read the profile's info
+              account.link<&Profile.Base{Profile.Public}>(Profile.publicPath, target: Profile.privatePath)
+            }
+          }
+        }
+      `,
+      payer: fcl.authz,
+      proposer: fcl.authz,
+      authorizations: [fcl.authz],
+      limit: 50
+    })
+
+    const transaction = await fcl.tx(transactionId).onceSealed()
+    console.log(transaction)
+  }
+
+  const executeTransaction = async () => {
+    const transactionId = await fcl.mutate({
+      cadence: `
+        import Profile from 0xProfile
+
+        transaction(name: String) {
+          prepare(account: AuthAccount) {
+            account
+              .borrow<&Profile.Base{Profile.Owner}>(from: Profile.privatePath)!
+              .setName(name)
+          }
+        }
+      `,
+      args: (arg, t) => [arg("Flow Developer!", t.String)],
+      payer: fcl.authz,
+      proposer: fcl.authz,
+      authorizations: [fcl.authz],
+      limit: 50
+    })
+
+    fcl.tx(transactionId).subscribe(res => setTransactionStatus(res.status))
+  }
+
+  const AuthedState = () => {
+    return (
+      <div className={styles.card}>
+        <div className={styles.description}>Address: {user?.addr ?? "No Address"}</div>
+        <div className={styles.description}>Profile Name: {name ?? "--"}</div>
+        <div className={styles.description}>Transaction Status: {transactionStatus ?? "--"}</div>
         <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+            <button onClick={sendQuery}>Send Query</button>
+            <button onClick={initAccount}>Init Account</button>
+            <button onClick={executeTransaction}>Execute Transaction</button>
+            <button onClick={fcl.unauthenticate}>Log Out</button>          
+        </div>  
       </div>
+    )
+  }
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
+  const UnauthenticatedState = () => {
+    return (
+      <div className={styles.card}>
+        <button onClick={fcl.logIn}>Log In</button>
+        <button onClick={fcl.signUp}>Sign Up</button>
       </div>
+    )
+  }
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
+  return (
+    <div>
+      <Head>
+        <title>Next App</title>
+        <meta name="description" content="Next App" />
+        <link rel="icon" href="/favicon.png" />
+      </Head>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+      <main className={styles.main}>
+        <h1>Next App</h1>
+        {user.loggedIn
+          ? <AuthedState />
+          : <UnauthenticatedState />
+        }
     </main>
+    </div>
   )
 }
