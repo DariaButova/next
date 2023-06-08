@@ -72,6 +72,26 @@
   max-width: 30ch;
 }
 
+.card button {
+  background: rgb(41, 57, 51);
+  border-radius: 15px;
+  width: 100%;
+  border: none;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 24px;
+  color: rgb(5, 223, 133);
+  font-family: Poppins, sans-serif;
+  margin-top: 20px;
+  padding: 20px;
+}
+
+.card button:hover {
+  background: rgb(5, 223, 133);
+  color: rgb(41, 57, 51);
+  cursor: pointer;
+}
+
 .center {
   display: flex;
   justify-content: center;
