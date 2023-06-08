@@ -114,7 +114,7 @@ export default function Home() {
       </Head>
 
       <main className={styles.main}>
-        <h1>Next App</h1>
+      <img className={styles.logo} src="next.png" alt="Next Logo"/>
         {user.loggedIn
           ? <AuthedState />
           : <UnauthenticatedState />
