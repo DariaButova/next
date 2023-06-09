@@ -53,7 +53,6 @@ export default function Home() {
     })
 
     const transaction = await fcl.tx(transactionId).onceSealed()
-    console.log(transaction)
   }
 
   const executeTransaction = async () => {
@@ -69,7 +68,7 @@ export default function Home() {
           }
         }
       `,
-      args: (arg, t) => [arg("Flow Developer!", t.String)],
+      args: (arg, t) => [arg("Flow Developer", t.String)],
       payer: fcl.authz,
       proposer: fcl.authz,
       authorizations: [fcl.authz],
@@ -114,12 +113,14 @@ export default function Home() {
       </Head>
 
       <main className={styles.main}>
-      <img className={styles.logo} src="next.png" alt="Next Logo"/>
-        {user.loggedIn
-          ? <AuthedState />
-          : <UnauthenticatedState />
-        }
-    </main>
+        <div className={styles.grid}>
+          <img className={styles.logo} src="next-logo.png" alt="Next Logo"/>
+          {user.loggedIn
+            ? <AuthedState />
+            : <UnauthenticatedState />
+          }
+        </div>
+      </main>
     </div>
   )
 }
